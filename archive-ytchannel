@@ -1,0 +1,56 @@
+#!/bin/bash
+#
+# Youtube channel archival utility
+# 
+# Usage: archive-ytchannel <full channel url> [archive file = archive.txt]
+# To update archive in current directory simply re-run without arguments
+#
+# Ideally you want to run it in background: "archive-ytchannel <url> & disown"
+#
+# Author: moh@yutsuku.net
+# Revision: 2023-06-03
+# License: MIT
+#
+set -euxo pipefail
+
+archive='archive.txt'
+channel='channel.txt'
+
+if [ -z "$1" ]; then
+    if [ -f $channel ]; then
+        url=$(cat $channel)
+    else
+        echo 'Provide channel URL'
+        exit 1
+    fi
+else
+    url=$1
+fi
+
+if [ -n "$2" ]; then
+    archive=$2
+fi
+
+if [ ! -f $channel ]; then
+    echo $url > $channel
+fi
+
+#output_template='archive/%(channel_id)s/video/%(upload_date>%Y)s/%(upload_date>%m)s/%(upload_date>%d)s/%(id)s/%(title)s-%(id)s.%(ext)s'
+output_template='archive/%(channel_id)s/video/%(release_date>%Y,upload_date>%Y)s/%(release_date>%m,upload_date>%m)s/%(release_date>%d,upload_date>%d)s/%(id)s/%(title)s-%(id)s.%(ext)s'
+output_channel_info='archive/%(channel_id)s/channel/%(title)s-%(id)s.%(ext)s'
+
+/usr/local/bin/yt-dlp --ignore-config \
+--no-progress \
+--write-description \
+--write-info-json \
+--embed-subs \
+--write-thumbnail \
+--match-filter '!is_live' \
+--download-archive $archive \
+--output "$output_template" \
+--output "pl_thumbnail:$output_channel_info" \
+--output "pl_description:$output_channel_info" \
+--output "pl_infojson:$output_channel_info" \
+--exec "/opt/youtube/yreplay2srt/yreplay2srt.py %(requested_subtitles.live_chat.filepath)q" \
+$url
+
